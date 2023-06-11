@@ -1,5 +1,8 @@
 venv/
 test.mp4
 .gitignore
-thumbnail*
-video*
+test.mp4
+thumbnail1.jpg
+thumbnail2.jpg
+video1.mp4
+video2.mp4
