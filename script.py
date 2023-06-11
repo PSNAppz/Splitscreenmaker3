@@ -80,26 +80,15 @@ async def combine_videos():
     clip1 = resize_video(VideoFileClip("video1.mp4"), width, height)
     clip2 = resize_video(VideoFileClip("video2.mp4"), width, height)
     clip3 = resize_video(VideoFileClip("video3.mp4"), width, height)
-
-
     combined = clips_array([[clip1 ,clip2,clip3]])
-
 
     output_width = 1280
     output_height = 720
 
-
     combined2= combined.resize((output_width, output_height))
-
-
     combined2.write_videofile("test.mp4")
         
-
     return FileResponse("test.mp4", media_type="video/mp4")
-    return send_file('test.mp4', as_attachment=True)
-
-
-
 
 
 if __name__ == "__main__":
