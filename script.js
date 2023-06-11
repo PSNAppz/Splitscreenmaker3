@@ -1,47 +1,44 @@
-// Function to handle file upload for a specific video
 function handleFileUpload(videoNumber) {
   var fileInput = document.getElementById('fileInput' + videoNumber);
   
   fileInput.onchange = function () {
     var files = fileInput.files;
+
+    var videoPlayer = document.getElementById('videoPlayer' + videoNumber);
+    var videoThumbnail = document.getElementById('videoThumbnail' + videoNumber);
+
+    videoPlayer.style.display = 'none';
+    videoThumbnail.style.display = 'block';
+    videoThumbnail.style.width = '100%'; // Set the width to 450 pixels
+    videoThumbnail.style.height = '100%'; // Set the height to 540 pixels
+    videoThumbnail.src = ''; // Clear the previous thumbnail
+    videoThumbnail.alt = ''; // Clear the alt text
+
+    var formData = new FormData();
     for (var i = 0; i < files.length; i++) {
-      var file = files[i];
-      var fileURL = URL.createObjectURL(file);
-
-      var videoPlayer = document.getElementById('videoPlayer' + videoNumber);
-      var videoThumbnail = document.getElementById('videoThumbnail' + videoNumber);
-
-      videoPlayer.style.display = 'none';
-      videoThumbnail.style.display = 'block';
-      videoThumbnail.style.width = '100%'; // Set the width to 450 pixels
-      videoThumbnail.style.height = '100%'; // Set the height to 540 pixels
-      videoThumbnail.src = ''; // Clear the previous thumbnail
-      videoThumbnail.alt = ''; // Clear the alt text
-
-      var formData = new FormData();
-      formData.append('file', file);
-      formData.append('videoNumber', videoNumber); // Add the videoNumber to the formData
-
-      fetch('http://localhost:8000/upload', {
-        method: 'POST',
-        body: formData,
-      })
-        .then(response => response.json())
-        .then(data => {
-          console.log(data.message); // Display the message
-
-          if (data.imagePath) {
-            // Add a cache-busting parameter to the image URL
-            var imageURL = data.imagePath + '?' + new Date().getTime();
-            videoThumbnail.src = imageURL;
-          } else {
-            videoThumbnail.style.display = 'none'; // Hide the image tag if no thumbnail available
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-        });
+      formData.append('files', files[i]);
     }
+    formData.append('videoNumber', videoNumber); // Add the videoNumber to the formData
+
+    fetch('http://localhost:8000/upload', {
+      method: 'POST',
+      body: formData,
+    })
+      .then(response => response.json())
+      .then(data => {
+        console.log(data.message); // Display the message
+
+        if (data.imagePath) {
+          // Add a cache-busting parameter to the image URL
+          var imageURL = data.imagePath + '?' + new Date().getTime();
+          videoThumbnail.src = imageURL;
+        } else {
+          videoThumbnail.style.display = 'none'; // Hide the image tag if no thumbnail available
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
   };
 
   fileInput.click();

@@ -4,7 +4,8 @@ import cv2
 import subprocess
 from fastapi.middleware.cors import CORSMiddleware
 from moviepy.editor import VideoFileClip, clips_array
-from moviepy.editor import *
+from moviepy.editor import concatenate_videoclips
+from typing import List
 
 from moviepy.video.fx.all import crop
 
@@ -40,12 +41,22 @@ app.add_middleware(
 
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), videoNumber: int = Form(...)):
-    with open(f"video{videoNumber}.mp4", "wb") as f:
-        f.write(await file.read())
-        
+async def upload_file(files: List[UploadFile] = File(...), videoNumber: int = Form(...)):
+    video_clips = []
+
+    for file in files:
+        temp_file_name = f"temp{file.filename}"
+        with open(temp_file_name, "wb") as f:
+            f.write(await file.read())
+        video_clips.append(VideoFileClip(temp_file_name))
+    
+    # concatenate videos into one
+    final_clip = concatenate_videoclips(video_clips)
+    final_clip_name = f"video{videoNumber}.mp4"
+    final_clip.write_videofile(final_clip_name)
+
     # Generate thumbnail image for the uploaded video
-    video_capture = cv2.VideoCapture(f"video{videoNumber}.mp4")
+    video_capture = cv2.VideoCapture(final_clip_name)
     success, frame = video_capture.read()
     if success:
         thumbnail_path = f"thumbnail{videoNumber}.jpg"
@@ -53,7 +64,7 @@ async def upload_file(file: UploadFile = File(...), videoNumber: int = Form(...)
     else:
         thumbnail_path = None
 
-    return JSONResponse({"message": "Video uploaded successfully", "imagePath": thumbnail_path})
+    return JSONResponse({"message": "Videos uploaded successfully", "imagePath": thumbnail_path})
 
 @app.get("/combine")
 async def combine_videos():
