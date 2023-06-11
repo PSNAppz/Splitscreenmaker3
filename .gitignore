@@ -1,0 +1,5 @@
+venv/
+test.mp4
+.gitignore
+thumbnail*
+video*
