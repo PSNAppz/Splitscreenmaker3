@@ -11,8 +11,9 @@ function handleFileUpload(videoNumber) {
     videoThumbnail.style.display = 'block';
     videoThumbnail.style.width = '100%'; // Set the width to 450 pixels
     videoThumbnail.style.height = '100%'; // Set the height to 540 pixels
-    videoThumbnail.src = ''; // Clear the previous thumbnail
-    videoThumbnail.alt = ''; // Clear the alt text
+    
+    // Set placeholder image
+    videoThumbnail.src = 'load.png';
 
     var formData = new FormData();
     for (var i = 0; i < files.length; i++) {
@@ -31,9 +32,9 @@ function handleFileUpload(videoNumber) {
         if (data.imagePath) {
           // Add a cache-busting parameter to the image URL
           var imageURL = data.imagePath + '?' + new Date().getTime();
-          videoThumbnail.src = imageURL;
+          videoThumbnail.src = imageURL; // Replace placeholder with actual image
         } else {
-          videoThumbnail.style.display = 'none'; // Hide the image tag if no thumbnail available
+          videoThumbnail.src = 'load.png'; // Keep placeholder if no thumbnail available
         }
       })
       .catch(error => {
@@ -43,6 +44,7 @@ function handleFileUpload(videoNumber) {
 
   fileInput.click();
 }
+
 
 // Function to handle file upload for video 2 and video 3
 function chooseFile(videoNumber) {
