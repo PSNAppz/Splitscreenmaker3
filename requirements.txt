@@ -1,0 +1,6 @@
+fastapi
+opencv-python-headless==4.8.0.74
+uvicorn
+gunicorn==20.1.0
+python-multipart==0.0.6
+dropbox==11.36.2
