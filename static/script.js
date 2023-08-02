@@ -45,6 +45,34 @@ function handleFileUpload(videoNumber) {
 
   fileInput.click();
 }
+document.getElementById('audioInput').onchange = function () {
+  var files = this.files;
+  alert(files.length + ' audio files selected');
+  var formData = new FormData();
+  for (var i = 0; i < files.length; i++) {
+    formData.append('audio', files[i]);
+  }
+
+  fetch('http://localhost:8000/upload-audio', {
+    method: 'POST',
+    body: formData,
+  })
+    .then(response => response.json())
+    .then(data => {
+      console.log(data.message);
+      uniqueIds.push(data.unique_id); // Store the unique ID
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+};
+function handleAudioUpload() {
+  var audioInput = document.getElementById('audioInput');
+
+  
+
+  audioInput.click();
+}
 
 function combine() {
   var loadedVideos = 0;
@@ -62,7 +90,10 @@ function combine() {
     var loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.classList.add('active');
 
-    fetch('http://localhost:8000/combine/' + uniqueIds.join(',')) // Send all unique IDs
+    var audioId = (uniqueIds.length > videosToLoad) ? uniqueIds.pop() : null;
+    var fetchUrl = audioId ? ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/' + audioId) : ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/0');
+
+    fetch(fetchUrl) // Send all unique IDs and optional audio ID
       .then(response => {
         if (response.ok) {
           return response.blob();
@@ -87,6 +118,7 @@ function combine() {
   }
 }
 
+
 function chooseFile(videoNumber) {
   var fileInput = document.getElementById('fileInput' + videoNumber);
   fileInput.onchange = function () {
@@ -96,11 +128,15 @@ function chooseFile(videoNumber) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  var fileInputs = document.querySelectorAll("input[type='file']");
+  var fileInputs = document.querySelectorAll("input[type='file']:not(#audioInput)");
   fileInputs.forEach(function(fileInput) {
     fileInput.addEventListener('change', function() {
       var videoNumber = this.id.replace("fileInput", "");
       handleFileUpload(videoNumber);
     });
+  });
+  var audioInput = document.getElementById('audioInput');
+  audioInput.addEventListener('change', function() {
+    handleAudioUpload();
   });
 });
