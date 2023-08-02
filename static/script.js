@@ -22,7 +22,7 @@ function handleFileUpload(videoNumber) {
     }
     formData.append('videoNumber', videoNumber);
 
-    fetch('http://localhost:8000/upload', {
+    fetch('http://107.23.246.78/upload', {
       method: 'POST',
       body: formData,
     })
@@ -53,7 +53,7 @@ document.getElementById('audioInput').onchange = function () {
     formData.append('audio', files[i]);
   }
 
-  fetch('http://localhost:8000/upload-audio', {
+  fetch('http://107.23.246.78/upload-audio', {
     method: 'POST',
     body: formData,
   })
@@ -91,7 +91,7 @@ function combine() {
     loadingOverlay.classList.add('active');
 
     var audioId = (uniqueIds.length > videosToLoad) ? uniqueIds.pop() : null;
-    var fetchUrl = audioId ? ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/' + audioId) : ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/0');
+    var fetchUrl = audioId ? ('http://107.23.246.78/combine/' + uniqueIds.join(',') + '/' + audioId) : ('http://107.23.246.78/combine/' + uniqueIds.join(',') + '/0');
 
     fetch(fetchUrl) // Send all unique IDs and optional audio ID
       .then(response => {
