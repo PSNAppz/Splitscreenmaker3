@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "fastapi": "^0.0.8",
-    "flask": "^0.2.10",
-    "subprocess": "^0.1.0"
-  }
-}
