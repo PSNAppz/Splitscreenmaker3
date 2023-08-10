@@ -9,14 +9,22 @@ import os
 import uuid
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update this with your desired origins
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+def has_audio(file_path: str) -> bool:
+    """
+    Check if a video file has an audio stream.
+    """
+    result = subprocess.run(["ffmpeg", "-i", file_path], capture_output=True, text=True, stderr=subprocess.PIPE)
+    return "Audio:" in result.stderr
 
 @app.get("/")
 def read_root():
@@ -39,18 +47,37 @@ async def upload_file(files: List[UploadFile] = File(...), videoNumber: int = Fo
     width = 426
     height = 720
     video_files = []
+
     for file in files:
         temp_file_name = f"static/temp_{unique_id}_{file.filename}"
         with open(temp_file_name, "wb") as f:
             f.write(await file.read())
 
         resized_file_name = f"static/resized_{unique_id}_{file.filename}"
-        print("File name: ", file.filename)
-        subprocess.run([
-            "ffmpeg", "-i", temp_file_name, "-vf",
-            f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
-            resized_file_name
-        ])
+        
+        if file.filename.endswith(".jpg") or file.filename.endswith(".jpeg") or file.filename.endswith(".png"):
+            # Convert image to a video of 30 seconds
+            subprocess.run([
+                "ffmpeg", "-loop", "1", "-i", temp_file_name, "-c:v", "libx264", "-t", "30", "-pix_fmt", "yuv420p", "-vf", f"scale={width}:{height}",
+                resized_file_name
+            ])
+        else:
+            subprocess.run([
+                "ffmpeg", "-i", temp_file_name, "-vf",
+                f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
+                "-s", "hd720",  # Limit the video quality to 720p
+                resized_file_name
+            ])
+            # Check if the video has an audio stream. If not, add a silent audio.
+            if not has_audio(resized_file_name):
+                silent_video_name = f"static/silent_{unique_id}_{file.filename}"
+                subprocess.run([
+                    "ffmpeg", "-f", "lavfi", "-i", "anullsrc", "-i", resized_file_name, 
+                    "-c:v", "copy", "-c:a", "aac", "-shortest", silent_video_name
+                ])
+                video_files.append(silent_video_name)
+                continue
+        
         video_files.append(resized_file_name)
 
     # concatenate videos into one
@@ -63,6 +90,7 @@ async def upload_file(files: List[UploadFile] = File(...), videoNumber: int = Fo
     final_clip_name = f"static/video_{unique_id}_{videoNumber}.mp4"
     subprocess.run(["ffmpeg", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", final_clip_name])
     os.remove(list_file)  # remove the list file
+    
     # Generate thumbnail image for the uploaded video
     video_capture = cv2.VideoCapture(final_clip_name)
     success, frame = video_capture.read()
@@ -120,7 +148,6 @@ async def combine_videos(unique_ids: str, audio_id: str = None):
             os.remove(os.path.join("static", file))
     
     return FileResponse(f"static/test_{unique_id}.mp4", media_type="video/mp4")
-
 
 
 if __name__ == "__main__":
