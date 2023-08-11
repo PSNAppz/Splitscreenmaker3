@@ -20,7 +20,7 @@ function handleFileUpload(videoNumber) {
     }
     formData.append('videoNumber', videoNumber);
 
-    fetch('http://107.23.246.78/upload', {
+    fetch('http://localhost:8000/upload', {
         method: 'POST',
         body: formData,
     })
@@ -49,7 +49,7 @@ document.getElementById('audioInput').onchange = function () {
         formData.append('audio', files[i]);
     }
 
-    fetch('http://107.23.246.78/upload-audio', {
+    fetch('http://localhost:8000/upload-audio', {
         method: 'POST',
         body: formData,
     })
@@ -79,7 +79,7 @@ function combine() {
         loadingOverlay.classList.add('active');
 
         var audioId = (uniqueIds.length > videosToLoad) ? uniqueIds.pop() : null;
-        var fetchUrl = audioId ? ('http://107.23.246.78/combine/' + uniqueIds.join(',') + '/' + audioId) : ('http://107.23.246.78/combine/' + uniqueIds.join(',') + '/0');
+        var fetchUrl = audioId ? ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/' + audioId) : ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/0');
 
         fetch(fetchUrl) // Send all unique IDs and optional audio ID
             .then(response => {
@@ -106,16 +106,24 @@ function combine() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+function chooseFile(videoNumber) {
+    var fileInput = document.getElementById('fileInput' + videoNumber);
+    fileInput.onchange = function () {
+      handleFileUpload(videoNumber);
+    };
+    fileInput.click();
+  }
+  
+  document.addEventListener("DOMContentLoaded", function() {
     var fileInputs = document.querySelectorAll("input[type='file']:not(#audioInput)");
-    fileInputs.forEach(function (fileInput) {
-        fileInput.addEventListener('change', function () {
-            var videoNumber = this.id.replace("fileInput", "");
-            handleFileUpload(videoNumber);
-        });
+    fileInputs.forEach(function(fileInput) {
+      fileInput.addEventListener('change', function() {
+        var videoNumber = this.id.replace("fileInput", "");
+        handleFileUpload(videoNumber);
+      });
     });
     var audioInput = document.getElementById('audioInput');
-    audioInput.addEventListener('change', function () {
-        handleAudioUpload();
+    audioInput.addEventListener('change', function() {
+      handleAudioUpload();
     });
-});
+  });

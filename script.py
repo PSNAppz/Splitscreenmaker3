@@ -23,7 +23,7 @@ def has_audio(file_path: str) -> bool:
     """
     Check if a video file has an audio stream.
     """
-    result = subprocess.run(["ffmpeg", "-i", file_path], capture_output=True, text=True, stderr=subprocess.PIPE)
+    result = subprocess.run(["ffmpeg", "-i", file_path], text=True, stderr=subprocess.PIPE)
     return "Audio:" in result.stderr
 
 @app.get("/")
@@ -47,6 +47,7 @@ async def upload_file(files: List[UploadFile] = File(...), videoNumber: int = Fo
     width = 426
     height = 720
     video_files = []
+    print(len(files), "TOTAL FILES")
 
     for file in files:
         temp_file_name = f"static/temp_{unique_id}_{file.filename}"
@@ -57,10 +58,12 @@ async def upload_file(files: List[UploadFile] = File(...), videoNumber: int = Fo
         
         if file.filename.endswith(".jpg") or file.filename.endswith(".jpeg") or file.filename.endswith(".png"):
             # Convert image to a video of 30 seconds
+            print("Converting image to video", temp_file_name)
+            resized_file_name = resized_file_name.replace(".png", ".mp4").replace(".jpg", ".mp4").replace(".jpeg", ".mp4")
             subprocess.run([
-                "ffmpeg", "-loop", "1", "-i", temp_file_name, "-c:v", "libx264", "-t", "30", "-pix_fmt", "yuv420p", "-vf", f"scale={width}:{height}",
-                resized_file_name
+                "ffmpeg", "-loop", "1", "-i", temp_file_name, "-c:v", "libx264", "-t", "30", "-pix_fmt", "yuv420p", resized_file_name
             ])
+            print("Image converted to video", resized_file_name)
         else:
             subprocess.run([
                 "ffmpeg", "-i", temp_file_name, "-vf",
@@ -99,7 +102,8 @@ async def upload_file(files: List[UploadFile] = File(...), videoNumber: int = Fo
         cv2.imwrite(thumbnail_path, frame)
     else:
         thumbnail_path = None
-
+    print("Thumbnail path", thumbnail_path)
+    print("Video ID", unique_id)
     return JSONResponse({"message": "Videos uploaded successfully", "imagePath": thumbnail_path, "unique_id": unique_id})
 
 @app.get("/combine/{unique_ids}/{audio_id}")
@@ -110,7 +114,7 @@ async def combine_videos(unique_ids: str, audio_id: str = None):
 
     unique_ids = unique_ids.split(",")
     videos = [f"static/video_{unique_id}_{i+1}.mp4" for i, unique_id in enumerate(unique_ids)]
-    
+    print("VIDEOS", videos)
     width = 426
     height = 720
     unique_id = str(uuid.uuid4())
