@@ -1,15 +1,32 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import JSONResponse, FileResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, FileResponse
 import cv2
+from moviepy.editor import VideoFileClip, clips_array
+from moviepy.editor import concatenate_videoclips
+from typing import List
+from moviepy.editor import *
+import os
+from moviepy.video.fx.all import crop
+
 from fastapi.middleware.cors import CORSMiddleware
+from moviepy.editor import VideoFileClip, clips_array
+from moviepy.editor import *
+import os
+import base64
+import uvicorn
 from typing import List
 import subprocess
-import os
-import uuid
+import time
+import random
+import string
+global audioname
+from collections import Counter
+
+
+audioname = None
+
 
 app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,231 +34,285 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
-def has_audio(file_path: str) -> bool:
-    """
-    Check if a video file has an audio stream using ffprobe.
-    """
-    cmd = [
-        "ffprobe", 
-        "-v", "error", 
-        "-select_streams", "a", 
-        "-show_entries", "stream=codec_type", 
-        "-of", "default=noprint_wrappers=1:nokey=1", 
-        file_path
+
+def resize_videos(clips, width, height):
+
+
+    duration_limit = 30  # in seconds
+
+    outnames = []
+    file1 = generate_unique_filename()
+
+    for input_file in clips:
+        cmd_probe = [
+            'ffprobe',
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=width,height',
+            '-of', 'csv=p=0:s=x',
+            input_file
+        ]
+        result = subprocess.run(cmd_probe, stdout=subprocess.PIPE, text=True)
+        video_info = result.stdout.strip().split('x')
+        video_width, video_height = int(video_info[0]), int(video_info[1])
+
+        # Calculate the scale and crop values
+        aspect_ratio = video_width / video_height
+        if aspect_ratio > width / height:
+            new_width = int(height * aspect_ratio)
+            new_height = height
+        else:
+            new_width = width
+            new_height = int(width / aspect_ratio)
+        scale = f'{new_width}:{new_height}'
+        crop_x = (new_width - width) // 2
+        crop_y = (new_height - height) // 2
+
+        # Build the ffmpeg command
+        cmd_ffmpeg = [
+            'ffmpeg',
+            '-i', input_file,
+            '-t', str(duration_limit),
+            '-vf', f'scale={scale},crop={width}:{height}:{crop_x}:{crop_y}',
+            f"resized{input_file}"
+        ]
+
+        # Run the ffmpeg command
+        subprocess.run(cmd_ffmpeg)
+
+        outnames.append(f"resized{input_file}")
+
+    out = concatenate_videos(outnames, f"{file1}concat.mp4")
+
+    return out
+
+
+def resize_single(input_file, width, height):
+
+    duration_limit = 30  # in seconds
+
+
+    file1 = generate_unique_filename()
+
+
+    cmd_probe = [
+        'ffprobe',
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0:s=x',
+        input_file
     ]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return "audio" in result.stdout.decode()
+    result = subprocess.run(cmd_probe, stdout=subprocess.PIPE, text=True)
+    video_info = result.stdout.strip().split('x')
+    video_width, video_height = int(video_info[0]), int(video_info[1])
+
+    # Calculate the scale and crop values
+    aspect_ratio = video_width / video_height
+    if aspect_ratio > width / height:
+        new_width = int(height * aspect_ratio)
+        new_height = height
+    else:
+        new_width = width
+        new_height = int(width / aspect_ratio)
+    scale = f'{new_width}:{new_height}'
+    crop_x = (new_width - width) // 2
+    crop_y = (new_height - height) // 2
+
+    # Build the ffmpeg command
+    cmd_ffmpeg = [
+        'ffmpeg',
+        '-i', input_file,
+        '-t', str(duration_limit),
+        '-vf', f'scale={scale},crop={width}:{height}:{crop_x}:{crop_y}',
+        f"resized{input_file}"
+    ]
+
+    # Run the ffmpeg command
+    subprocess.run(cmd_ffmpeg)
+
+    # save 
+
+    return f"resized{input_file}"
 
 
-@app.get("/")
-def read_root():
-    return Response(content=open("index.html", "r").read(), media_type="text/html")
+def concatenate_videos(input_files, output_file):
+
+    # CONCATENATE VIDEOS
+    clips = [VideoFileClip(filename) for filename in input_files]
+    final_clip = concatenate_videoclips(clips)  
+    # if the lenght of concatenated video is greater than 30 seconds, then limit it to 30 seconds just
+
+    if final_clip.duration > 30:
+        final_clip = final_clip.subclip(0, 30)
+
+
+    final_clip.write_videofile(output_file) 
+
+    return output_file
+
+
 
 @app.post("/upload-audio")
-async def upload_audio(audio: UploadFile = File(None)):
-    if audio:
-        unique_id = str(uuid.uuid4())
-        audio_file_name = f"static/audio_{unique_id}.mp3"
-        with open(audio_file_name, "wb") as f:
-            f.write(await audio.read())
-        return JSONResponse({"message": "Audio uploaded successfully", "unique_id": unique_id})
-    else:
-        return JSONResponse({"message": "No audio uploaded"})
+async def upload_audio(file: UploadFile = File(...)):
+    # Save the uploaded audio file
+    i = 1
+    while True:
+        if os.path.exists(f"audio{i}.mp3"):
+            i += 1
+        else:
+            break
+
+    with open(f"audio{i}.mp3", "wb") as f:
+        f.write(await file.read())
+
+    global audioname
+    audioname = f"audio{i}.mp3"
+    time.sleep(4)
+
+    return {"message": "Videos uploaded successfully"}
+
+
+@app.post("/upload-videos")
+async def upload_videos(files: List[UploadFile] = File(...)):
+    print(files)
+    i = 1
+    for file in files:
+        with open(f"video{i}.mp4", "wb") as f:
+            f.write(await file.read())
+        i+=1
+
+    return {"message": "Videos uploaded successfully"}
+
 
 @app.post("/upload")
-async def upload_file(files: List[UploadFile] = File(...), videoNumber: int = Form(...)):
-    unique_id = str(uuid.uuid4())
-    width = 426
-    height = 720
-    video_files = []
-    print(len(files), "TOTAL FILES")
+async def upload_file(file: UploadFile = File(...), videoNumber: int = Form(...)):
+    with open(f"video{videoNumber}.mp4", "wb") as f:
+        f.write(await file.read())
 
-    for file in files:
-        temp_file_name = f"static/temp_{unique_id}_{file.filename}"
-        with open(temp_file_name, "wb") as f:
-            f.write(await file.read())
-
-        resized_file_name = f"static/resized_{unique_id}_{file.filename}"
-        
-        if file.filename.endswith((".jpg", ".jpeg", ".png", ".webp")):
-            # Convert webp to png first if it's a webp image
-            if file.filename.endswith(".webp"):
-                png_filename = temp_file_name.replace(".webp", ".png")
-                subprocess.run(["ffmpeg", "-i", temp_file_name, png_filename])
-                temp_file_name = png_filename
-
-            # Convert image to a video of 30 seconds
-            print("Converting image to video", temp_file_name)
-            resized_file_name = resized_file_name.replace(".png", ".mp4").replace(".jpg", ".mp4").replace(".jpeg", ".mp4").replace(".webp", ".mp4")
-            subprocess.run([
-                "ffmpeg", "-framerate", "1/30", "-loop", "1", "-i", temp_file_name, "-c:v", "libx264", 
-                "-preset", "ultrafast", "-t", "30", "-pix_fmt", "yuv420p", "-crf", "28", 
-                resized_file_name
-            ])
-            print("Image converted to video", resized_file_name)
-        else:
-            subprocess.run([
-                "ffmpeg", "-i", temp_file_name, "-vf",
-                f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
-                "-s", "hd720",  # Limit the video quality to 720p
-                resized_file_name
-            ])
-            # Check if the video has an audio stream. If not, add a silent audio.
-            if not has_audio(resized_file_name):
-                silent_video_name = f"static/silent_{unique_id}_{file.filename}"
-                subprocess.run([
-                    "ffmpeg", "-f", "lavfi", "-i", "anullsrc", "-i", resized_file_name, 
-                    "-c:v", "copy", "-c:a", "aac", "-shortest", silent_video_name
-                ])
-                video_files.append(silent_video_name)
-                continue
-        
-        video_files.append(resized_file_name)
-
-    # concatenate videos into one
-    list_file = f"static/list_{unique_id}.txt"
-    with open(list_file, "w") as f:
-        for video_file in video_files:
-            f.write(f"file '{os.path.join(os.getcwd(), video_file)}'\n")
-
-    # concatenate videos into one
-    final_clip_name = f"static/video_{unique_id}_{videoNumber}.mp4"
-    subprocess.run(["ffmpeg", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", final_clip_name])
-    os.remove(list_file)  # remove the list file
-    
     # Generate thumbnail image for the uploaded video
-    video_capture = cv2.VideoCapture(final_clip_name)
+    video_capture = cv2.VideoCapture(f"video{videoNumber}.mp4")
     success, frame = video_capture.read()
     if success:
-        thumbnail_path = f"static/thumbnail_{unique_id}_{videoNumber}.jpg"
+        # Save the thumbnail as a temporary file
+        thumbnail_path = f"thumbnail{videoNumber}23.jpg"
         cv2.imwrite(thumbnail_path, frame)
-    else:
-        thumbnail_path = None
-    print("Thumbnail path", thumbnail_path)
-    print("Video ID", unique_id)
-    return JSONResponse({"message": "Videos uploaded successfully", "imagePath": thumbnail_path, "unique_id": unique_id})
-    unique_id = str(uuid.uuid4())
-    width = 426
-    height = 720
-    video_files = []
-    print(len(files), "TOTAL FILES")
 
-    for file in files:
-        temp_file_name = f"static/temp_{unique_id}_{file.filename}"
-        with open(temp_file_name, "wb") as f:
+        # Read the thumbnail image and convert it to base64
+        with open(thumbnail_path, "rb") as thumbnail_file:
+            thumbnail_data = thumbnail_file.read()
+            thumbnail_base64 = base64.b64encode(thumbnail_data).decode("utf-8")
+
+    else:
+        thumbnail_base64 = None
+
+        
+    return JSONResponse({"message": "Video uploaded successfully", "imagePath": thumbnail_base64})
+
+
+
+def generate_unique_filename():
+    timestamp = str(int(time.time()))
+    random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+    unique_filename = timestamp + '_' + random_string
+    return unique_filename
+
+
+
+
+@app.post("/combine")
+async def combine_videos(files: List[UploadFile] = File(...), audio: UploadFile = File(None), videoNumber: str = Form(...)):
+
+    file1 = generate_unique_filename()
+    audionames = generate_unique_filename()
+    outputname = generate_unique_filename()
+
+    # Save the uploaded video files and create a list of their names
+    files_na = []
+    i = 1
+    for i, file in enumerate(files, start=1):
+        with open(f"{file1}{i}.mp4", "wb") as f:
             f.write(await file.read())
+            files_na.append(f"{file1}{i}.mp4")
+        i += 1
 
-        resized_file_name = f"static/resized_{unique_id}_{file.filename}"
-        
-        if file.filename.endswith(".jpg") or file.filename.endswith(".jpeg") or file.filename.endswith(".png"):
-            # Convert image to a video of 30 seconds
-            print("Converting image to video", temp_file_name)
-            resized_file_name = resized_file_name.replace(".png", ".mp4").replace(".jpg", ".mp4").replace(".jpeg", ".mp4")
-            subprocess.run([
-                "ffmpeg", "-framerate", "1/30", "-loop", "1", "-i", temp_file_name, "-c:v", "libx264", 
-                "-preset", "ultrafast", "-t", "30", "-pix_fmt", "yuv420p", "-crf", "28", 
-                resized_file_name
-            ])
-            print("Image converted to video", resized_file_name)
+    no = videoNumber.split(",")
+    # remove empty string from the list
+    no = list(filter(None, no))
+    count = Counter(no)
+
+    # iterate the count
+    total_vid =[]
+    index = 0
+    for key, value in count.items():
+        if int(value) > 1:
+            joined_names = []
+            for x in range(int(value)):
+                joined_names.append(files_na[index])
+                index = index + 1
+            out = resize_videos(joined_names, width=426, height=720)
+            total_vid.append(out)
         else:
-            subprocess.run([
-                "ffmpeg", "-i", temp_file_name, "-vf",
-                f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
-                "-s", "hd720",  # Limit the video quality to 720p
-                resized_file_name
-            ])
-            # Check if the video has an audio stream. If not, add a silent audio.
-            if not has_audio(resized_file_name):
-                silent_video_name = f"static/silent_{unique_id}_{file.filename}"
-                subprocess.run([
-                    "ffmpeg", "-f", "lavfi", "-i", "anullsrc", "-i", resized_file_name, 
-                    "-c:v", "copy", "-c:a", "aac", "-shortest", silent_video_name
-                ])
-                video_files.append(silent_video_name)
-                continue
-        
-        video_files.append(resized_file_name)
+            out = resize_single(files_na[index], width=426, height=720)
+            total_vid.append(out)
+            index = index + 1
 
-    # concatenate videos into one
-    list_file = f"static/list_{unique_id}.txt"
-    with open(list_file, "w") as f:
-        for video_file in video_files:
-            f.write(f"file '{os.path.join(os.getcwd(), video_file)}'\n")
+    count = 0
 
-    # concatenate videos into one
-    final_clip_name = f"static/video_{unique_id}_{videoNumber}.mp4"
-    subprocess.run(["ffmpeg", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", final_clip_name])
-    os.remove(list_file)  # remove the list file
-    
-    # Generate thumbnail image for the uploaded video
-    video_capture = cv2.VideoCapture(final_clip_name)
-    success, frame = video_capture.read()
-    if success:
-        thumbnail_path = f"static/thumbnail_{unique_id}_{videoNumber}.jpg"
-        cv2.imwrite(thumbnail_path, frame)
+    if audio is not None:
+        # Save the uploaded audio file
+        with open(f"{audionames}.mp3", "wb") as f:
+            f.write(await audio.read())
+            audios = f"{audionames}.mp3"
+            count = count + 1
+
     else:
-        thumbnail_path = None
-    print("Thumbnail path", thumbnail_path)
-    print("Video ID", unique_id)
-    return JSONResponse({"message": "Videos uploaded successfully", "imagePath": thumbnail_path, "unique_id": unique_id})
+        audios = ""
 
-@app.get("/combine/{unique_ids}/{audio_id}")
-async def combine_videos(unique_ids: str, audio_id: str = None):
-    for file in os.listdir("static"):
-        if file.startswith("test_"):
-            os.remove(os.path.join("static", file))
 
-    unique_ids = unique_ids.split(",")
-    videos = [f"static/video_{unique_id}_{i+1}.mp4" for i, unique_id in enumerate(unique_ids)]
-    width = 426
-    height = 720
-    unique_id = str(uuid.uuid4())
-    video_filters = []
-    audio_filters = []
-    ffmpeg_command = ["ffmpeg"]
+    video1 = total_vid[0]
+    video2 = total_vid[1]
+    video3 = total_vid[2]
 
-    for i, video in enumerate(videos):
-        ffmpeg_command.extend(["-i", video])
-        video_filters.append(f"[{i}:v]scale={width}:{height},pad=426:720:(426-iw)/2:(720-ih)/2:black[v{i}]")
 
-        if has_audio(video):
-            audio_filters.append(f"[{i}:a]anull[a{i}]")
-        else:
-            print("Adding silent audio:", i)
-            audio_filters.append(f"aevalsrc=0:d=30[a{i}]")
 
-    # Fill up to 3 with black videos and silent audio
-    for i in range(len(videos), 3):
-        video_filters.append(f"color=black:s=426x720:d=30[v{i}]")
-        audio_filters.append(f"aevalsrc=0:d=30[a{i}]")
+    clip1 = VideoFileClip(video1)
+    # get audio of clip
+    aud1 = clip1.audio
+    clip2 = VideoFileClip(video2)
+    # get audio of clip
+    aud2 = clip2.audio
+    clip3 = VideoFileClip(video3)
+    # get audio of clip
+    aud3 = clip3.audio
 
-    # Combine video and audio filters
-    video_filters.append(f'{"[" + "][".join([f"v{i}" for i in range(3)])}]hstack=inputs=3[v]')
-    audio_filters.append(f'{"[" + "][".join([f"a{i}" for i in range(3)])}]amix=inputs=3[a]')
+    combined = clips_array([[clip1, clip2, clip3]])
 
-    print("Video Filters:", video_filters)  # Debug print
-    print("Audio Filters:", audio_filters)  # Debug print
+    length = 30
 
-    filter_complex = '; '.join(video_filters + audio_filters)
-    print("Filter Complex:", filter_complex)  # Debug print
+    output_file = f"{outputname}.mp4"
 
-    ffmpeg_command.extend(["-filter_complex", filter_complex, "-map", "[v]", "-map", "[a]", "-b:v", "1000k", "-preset", "ultrafast", "-t", "30", "-r", "24", f"static/test_{unique_id}.mp4"])
-    print(" ".join(ffmpeg_command))  # Debug print
-    subprocess.run(ffmpeg_command)
 
-    # remove all the temporary files
-    for video in videos:
-        os.remove(video)
+    if audios == "":
+        print("No audio")
+        if combined.duration > 30:
+            combined = combined.subclip(0, 0 + length)
+        combined.write_videofile(output_file)
     
-    for file in os.listdir("static"):
-        if file.startswith("video_") or file.startswith("resized_") or file.startswith("temp_") or file.startswith("thumbnail_") or file.startswith("audio_"):
-            os.remove(os.path.join("static", file))
+    else:
+        print("Found Audio")
+        # Trim audio clip to match the duration of the video
+        audio = AudioFileClip(audios).subclip(0, combined.duration)
+        composite_audio = CompositeAudioClip([audio, aud1, aud2, aud3])
+        combined = combined.set_audio(composite_audio)
+        if combined.duration > 30:
+            combined = combined.subclip(0, 0 + length)
+        combined.write_videofile(output_file)
     
-    return FileResponse(f"static/test_{unique_id}.mp4", media_type="video/mp4")
+    
+    return FileResponse(output_file, media_type="video/mp4")
 
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="localhost", port=8000)

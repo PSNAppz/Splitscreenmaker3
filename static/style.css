@@ -43,6 +43,38 @@ body {
 
 
 
+.loader2 {
+  border: 16px solid #f3f3f3;
+  border-top: 16px solid #000000;
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  animation: spin2 2s linear infinite;
+}
+ 
+@keyframes spin2 {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#loadingOverlay2 {
+  position: absolute; /* Update the position to absolute */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none; /* Initially hidden */
+  z-index: 999; /* Add a higher z-index value */
+}
+
+#loadingOverlay2.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
 .flex-container {
     display: flex;
     justify-content: space-between;
@@ -202,9 +234,10 @@ body {
     background-color: #333745;
   }
   
-  .fancy-button-audio {
+
+  .fancy-button3 {
     position: absolute;
-    top: 10%; /* adjust bottom distance from flex item */
+    top: 65px; /* adjust bottom distance from flex item */
     left: 50%; /* center horizontally */
     transform: translateX(-50%); /* adjust for button width */
     background-color: #FE5F55;
@@ -214,13 +247,53 @@ body {
     cursor: pointer;
     font-size: 16px;
     padding: 12px 24px;
-    height: 5vh;
-    width: 10vw;
     overflow: hidden;
+    margin-bottom: 10px;
+    /* make this: style="position: absolute; top: 0; left: 50%" */
+    z-index: 2342342948893423423;
+       height: 5vh;
+    width: 10vw;
+    
+  }
+  
+  
+  .fancy-button3::before {
+    content: '';
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    height: 120px;
+    position: absolute;
+    top: -60px;
+    left: -60px;
+    transform: scale(0);
+    transition: transform 0.5s ease-out;
+    width: 120px;
     z-index: 2342342948893423423;
   }
   
-  .fancy-button-audio:hover {
+  .fancy-button3:hover::before {
+    transform: scale(2);
+  }
+  
+  .fancy-button3::after {
+    content: '';
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    height: 120px;
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    transform: scale(0);
+    transition: transform 0.5s ease-out;
+    width: 120px;
+    z-index: 2342342948893423423;
+  }
+  
+  .fancy-button3:hover::after {
+    transform: scale(2);
+  }
+  
+  .fancy-button3:hover {
     background-color: #333745;
   }
   
