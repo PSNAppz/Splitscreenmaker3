@@ -1,5 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import Response
 import cv2
 from moviepy.editor import VideoFileClip, clips_array
 from moviepy.editor import concatenate_videoclips
@@ -34,7 +36,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.get("/")
+def read_root():
+    return Response(content=open("index.html", "r").read(), media_type="text/html")
 
 def resize_videos(clips, width, height):
 
