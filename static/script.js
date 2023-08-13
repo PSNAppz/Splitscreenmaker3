@@ -30,7 +30,7 @@ function handleFileUpload(videoNumber) {
 
     console.log("data23")
 
-    fetch('http://localhost:8000/upload', {
+    fetch('http://107.23.246.78/upload', {
       method: 'POST',
       body: formData,
     })
@@ -159,7 +159,7 @@ function combine() {
     }
 
     // Upload the videos and combine them
-    fetch('http://localhost:8000/combine', {
+    fetch('http://107.23.246.78/combine', {
       method: 'POST',
       body: formData,
     })
