@@ -65,7 +65,7 @@ document.getElementById('audioInput').onchange = function () {
 
 function combine() {
     var loadedVideos = 0;
-    var videosToLoad = 2;
+    var videosToLoad = 3;
 
     for (var i = 1; i <= 3; i++) {
         var videoThumbnail = document.getElementById('videoThumbnail' + i);
@@ -77,7 +77,8 @@ function combine() {
     if (loadedVideos >= videosToLoad) {
         var loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.classList.add('active');
-
+        console.log('Total videos loaded: ' + loadedVideos + '\nCombining videos...');
+        
         var audioId = (uniqueIds.length > videosToLoad) ? uniqueIds.pop() : null;
         var fetchUrl = audioId ? ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/' + audioId) : ('http://localhost:8000/combine/' + uniqueIds.join(',') + '/0');
 
@@ -108,22 +109,19 @@ function combine() {
 
 function chooseFile(videoNumber) {
     var fileInput = document.getElementById('fileInput' + videoNumber);
-    fileInput.onchange = function () {
-      handleFileUpload(videoNumber);
-    };
     fileInput.click();
-  }
-  
-  document.addEventListener("DOMContentLoaded", function() {
-    var fileInputs = document.querySelectorAll("input[type='file']:not(#audioInput)");
-    fileInputs.forEach(function(fileInput) {
-      fileInput.addEventListener('change', function() {
-        var videoNumber = this.id.replace("fileInput", "");
-        handleFileUpload(videoNumber);
-      });
-    });
-    var audioInput = document.getElementById('audioInput');
-    audioInput.addEventListener('change', function() {
-      handleAudioUpload();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  var fileInputs = document.querySelectorAll("input[type='file']:not(#audioInput)");
+  fileInputs.forEach(function(fileInput) {
+    fileInput.addEventListener('change', function() {
+      var videoNumber = this.id.replace("fileInput", "");
+      handleFileUpload(videoNumber);
     });
   });
+  var audioInput = document.getElementById('audioInput');
+  audioInput.addEventListener('change', function() {
+    handleAudioUpload();
+  });
+});
